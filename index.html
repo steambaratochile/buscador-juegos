@@ -45,7 +45,7 @@
       margin-top:10px;
     }
 
-    .result{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+    .result{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);align-items:center}
     .result span:first-child{flex:1}
 
     .good{color:#22c55e;font-weight:bold}
@@ -115,6 +115,21 @@
       opacity:0; pointer-events:none; transition:all .25s ease; z-index:2000;
     }
     .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+    /* ✅ Imagen en resultados */
+    .game-left{display:flex;align-items:center;gap:10px;min-width:0}
+    .game-cover{
+      width:54px;height:54px;flex:0 0 54px;
+      object-fit:cover;border-radius:10px;
+      border:1px solid rgba(255,255,255,.08);
+      background:#0f172a;
+    }
+    .game-placeholder{
+      width:54px;height:54px;flex:0 0 54px;
+      border-radius:10px;border:1px solid rgba(255,255,255,.08);
+      background:#0f172a;
+    }
+    .game-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   </style>
 </head>
 
@@ -263,7 +278,7 @@
     }
 
     function escapeHtml(str){
-      return String(str)
+      return String(str ?? "")
         .replaceAll("&","&amp;")
         .replaceAll("<","&lt;")
         .replaceAll(">","&gt;")
@@ -273,7 +288,6 @@
 
     // ========= CARGA DESDE SHEETS =========
     async function loadGames(){
-      // Mensaje inicial (así nunca queda “blanco”)
       results.innerHTML = "<p style='color:#9ca3af'>Cargando juegos...</p>";
 
       try{
@@ -281,16 +295,13 @@
         if(!res.ok) throw new Error("HTTP " + res.status);
 
         const data = await res.json();
-
         if(!data || !Array.isArray(data.games)){
           throw new Error("Respuesta inválida: falta data.games[]");
         }
 
         GAMES = data.games;
 
-        // cache local por si falla después
         localStorage.setItem("gamesCache", JSON.stringify({ ts: Date.now(), games: GAMES }));
-
         results.innerHTML = "";
       }catch(err){
         console.error("Error loadGames:", err);
@@ -305,7 +316,7 @@
       }
     }
 
-    // ========= BUSCADOR =========
+    // ========= BUSCADOR (con imagen) =========
     search.addEventListener("input", ()=>{
       const q = (search.value || "").toLowerCase().trim();
       if(!q){ results.innerHTML=""; return; }
@@ -320,15 +331,25 @@
         .slice(0, 30);
 
       results.innerHTML = filtered.map(g=>{
-        const name = String(g.name || "");
-        const available = !!g.available;
+        const name = String(g?.name || "");
+        const available = !!g?.available;
+        const image = String(g?.image || "").trim();
 
-        // OJO: no metemos comillas rotas; usamos encodeURIComponent para el onclick
         const safe = encodeURIComponent(name);
+
+        const coverHtml = image
+          ? `<img class="game-cover" src="${image}" alt="${escapeHtml(name)}" loading="lazy" decoding="async"
+                 referrerpolicy="no-referrer"
+                 onerror="this.outerHTML='<div class=&quot;game-placeholder&quot;></div>'">`
+          : `<div class="game-placeholder"></div>`;
 
         return `
           <div class="result">
-            <span>${escapeHtml(name)}</span>
+            <span class="game-left">
+              ${coverHtml}
+              <span class="game-name">${escapeHtml(name)}</span>
+            </span>
+
             <span>
               <span class="${available ? "good":"bad"}">
                 ${available ? "DISPONIBLE":"NO DISPONIBLE"}
@@ -345,5 +366,10 @@
     if(cartOpen) openCart();
     loadGames();
   </script>
+
+  <!-- Recomendado: atribución RAWG -->
+  <div style="text-align:center;color:#9ca3af;padding:10px 0 90px 0;font-size:12px">
+    Data & images from <a href="https://rawg.io" target="_blank" rel="noopener" style="color:#9ca3af">RAWG</a>
+  </div>
 </body>
 </html>
